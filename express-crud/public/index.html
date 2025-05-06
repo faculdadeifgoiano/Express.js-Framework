@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Produtos e Categorias</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        h1, h2 {
+            background-color: #e3e4e4; /* Fundo azul */
+            color: rgb(0, 0, 0); /* Texto branco */
+            padding: 10px; /* Espaçamento interno */
+            border-radius: 5px; /* Bordas arredondadas */
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Produtos e Categorias</h1>
+        <style>
+            h1, h2 {
+                background-color: #132da1; /* Fundo azul */
+                color: rgb(255, 255, 255); /* Texto branco */
+                padding: 10px; /* Espaçamento interno */
+                border-radius: 5px; /* Bordas arredondadas */
+            }
+        </style>
+
+        <!-- Mensagem de Sucesso ou Erro -->
+        <div id="message" class="alert d-none" role="alert"></div>
+
+        <!-- Cadastro de Categoria -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3>Cadastro de Categoria</h3>
+            </div>
+            <div class="card-body">
+                <form id="formCategoria">
+                    <input type="text" id="categoria" class="form-control mb-3" placeholder="Nome da Categoria" required>
+                    <button type="submit" class="btn btn-primary">Cadastrar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Cadastro de Produto -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3>Cadastro de Produto</h3>
+            </div>
+            <div class="card-body">
+                <form id="formProduto">
+                    <input type="text" id="produto" class="form-control mb-3" placeholder="Nome do Produto" required>
+                    <select id="categoriaProduto" class="form-select mb-3" required>
+                        <option value="" disabled selected>Selecione uma Categoria</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">Cadastrar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de Categorias -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3>Lista de Categorias</h3>
+            </div>
+            <ul id="listaCategorias" class="list-group list-group-flush"></ul>
+        </div>
+
+        <!-- Lista de Produtos -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Lista de Produtos</h3>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nome</th>
+                        <th>Categoria</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="listaProdutos"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const showMessage = (type, text) => {
+            const message = document.getElementById('message');
+            message.className = `alert alert-${type}`;
+            message.textContent = text;
+            message.classList.remove('d-none');
+            setTimeout(() => message.classList.add('d-none'), 3000);
+        };
+
+        const carregarCategorias = () => {
+            fetch('/categorias/pesquisa')
+                .then(res => res.json())
+                .then(data => {
+                    const lista = document.getElementById('listaCategorias');
+                    const select = document.getElementById('categoriaProduto');
+                    lista.innerHTML = '';
+                    select.innerHTML = '<option value="" disabled selected>Selecione uma Categoria</option>';
+                    data.forEach(categoria => {
+                        lista.innerHTML += `<li class="list-group-item">${categoria.nome}</li>`;
+                        select.innerHTML += `<option value="${categoria.nome}">${categoria.nome}</option>`;
+                    });
+                });
+        };
+
+        const carregarProdutos = () => {
+            fetch('/produtos/pesquisa')
+                .then(res => res.json())
+                .then(data => {
+                    const lista = document.getElementById('listaProdutos');
+                    lista.innerHTML = '';
+                    data.forEach(produto => {
+                        lista.innerHTML += `
+                            <tr>
+                                <td>${produto.id}</td>
+                                <td>
+                                    <span id="produtoNome-${produto.id}">${produto.nome}</span>
+                                    <input type="text" id="produtoInput-${produto.id}" class="form-control d-none" value="${produto.nome}">
+                                </td>
+                                <td>${produto.categoria}</td>
+                                <td>
+                                    <button class="btn btn-warning btn-sm" onclick="editarProduto(${produto.id})">Editar</button>
+                                    <button class="btn btn-success btn-sm d-none" id="salvar-${produto.id}" onclick="salvarProduto(${produto.id})">Salvar</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deletarProduto(${produto.id})">Deletar</button>
+                                </td>
+                            </tr>`;
+                    });
+                });
+        };
+
+        const editarProduto = id => {
+            document.getElementById(`produtoNome-${id}`).classList.add('d-none');
+            document.getElementById(`produtoInput-${id}`).classList.remove('d-none');
+            document.getElementById(`salvar-${id}`).classList.remove('d-none');
+        };
+
+        const salvarProduto = id => {
+            const novoNome = document.getElementById(`produtoInput-${id}`).value;
+            fetch(`/produtos/editar/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome: novoNome })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    showMessage('success', data.message);
+                    carregarProdutos();
+                });
+        };
+
+        const deletarProduto = id => {
+            if (confirm('Deseja deletar este produto?')) {
+                fetch(`/produtos/deletar/${id}`, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        showMessage('success', data.message);
+                        carregarProdutos();
+                    });
+            }
+        };
+
+        document.getElementById('formCategoria').addEventListener('submit', e => {
+            e.preventDefault();
+            const nome = document.getElementById('categoria').value;
+            fetch('/categorias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    showMessage('success', data.message);
+                    carregarCategorias();
+                    e.target.reset();
+                });
+        });
+
+        document.getElementById('formProduto').addEventListener('submit', e => {
+            e.preventDefault();
+            const nome = document.getElementById('produto').value;
+            const categoria = document.getElementById('categoriaProduto').value;
+            fetch('/produtos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, categoria })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    showMessage('success', data.message);
+                    carregarProdutos();
+                    e.target.reset();
+                });
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarCategorias();
+            carregarProdutos();
+        });
+    </script>
+</body>
+</html>
